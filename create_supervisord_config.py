@@ -11,16 +11,6 @@ if __name__ == "__main__":
     # use a different base supervisor file
     base_superv_conf = sys.argv[1]
   supervisord_config = Config(base_superv_conf)
-  if 'supervisor' in c.sections():
-    supervisord_config.add_section('inet_http_section')
-    params = {'username':'guest',
-              'password':'mypassword',
-              'port':'127.0.0.1:9001'}
-    for key in params:
-      if c.has_option('supervisor', key):
-        supervisord_config.set('inet_http_section', key, c.get('supervisor', key))
-      else:
-        supervisord_config.set('inet_http_section', key, params['key'])
   for worker in [x for x in c.sections() if x.startswith("worker_")]:
     # Worker defaults:
     params = {'autorestart':'true',
@@ -49,7 +39,7 @@ if __name__ == "__main__":
     # Worker defaults:
     params = {'autorestart':'true',
               'numprocs':'1',
-              'process_name':'worker_%(process_num)s',
+              'process_name':'%s_%%(process_num)s' % logger,
               'autostart':'true',
               'redirect_stderr':'True',
               'stopwaitsecs':'10',
@@ -69,6 +59,17 @@ if __name__ == "__main__":
     # set command
     command = c.get(logger, 'command')
     supervisord_config.set(section_name, 'command', "%s %s %s" % (command, "%(process_num)s", logger) )
+
+  if 'supervisor' in c.sections():
+    supervisord_config.add_section('inet_http_server')
+    params = {'username':'guest',
+              'password':'mypassword',
+              'port':'127.0.0.1:9001'}
+    for key in params:
+      if c.has_option('supervisor', key):
+        supervisord_config.set('inet_http_server', key, c.get('supervisor', key))
+      else:
+        supervisord_config.set('inet_http_server', key, params['key'])
 
   with open("supervisord.conf", "w") as cfgfile:
     supervisord_config.write(cfgfile)

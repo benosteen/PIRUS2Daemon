@@ -1,4 +1,6 @@
 [unix_http_server]
+username = guest
+password = guest
 file = /tmp/supervisor.sock
 
 [supervisord]

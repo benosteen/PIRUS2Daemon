@@ -28,9 +28,14 @@ if __name__ == "__main__":
                   )
 
   try:
-    plugin_module = __import__(c.get(worker_section, "repository_plugin"))
+    plugin_name = c.get(worker_section, "repository_plugin")
+    plugin_module = __import__(plugin_name)
+    components = plugin_name.split('.')
+    for comp in components[1:]:
+        plugin_module = getattr(plugin_module, comp)
   except ImportError, e:
     print "Coundn't import module: '%s' - %s" % (c.get(worker_section, "repository_plugin"), e)
+    sys.exit(2)
   
   if c.has_option(worker_section, 'pauseonfail'):
     try:
@@ -65,4 +70,5 @@ if __name__ == "__main__":
         if c.has_option(worker_section, "other_queue"):
           rq.push(line, c.get(worker_section, "other_queue"))
         rq.task_complete()
-
+    else:
+      sleep(delay)

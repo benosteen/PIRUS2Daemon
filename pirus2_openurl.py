@@ -23,7 +23,8 @@ def make_request(c, worker_section, openurl_params):
     except ValueError, e:
       success_code = 200
   
-  f = urllib2.Request(url)
+  req = urllib2.Request(url)
+  response = ""
   try:
     response = urllib2.urlopen(req)
     response.close()
@@ -35,5 +36,3 @@ def make_request(c, worker_section, openurl_params):
     if hasattr(e, 'reason'):
         print 'We failed to reach a server.'
         print 'Reason: ', e.reason
-  except:
-    return response
