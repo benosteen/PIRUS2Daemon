@@ -6,6 +6,8 @@ from LogConfigParser import Config
 
 from ConfigParser import ConfigParser
 
+OPTIONAL_SUPERVISOR_PROCESS_OPTIONS = ['user']
+
 if __name__ == "__main__":
   if not os.path.exists("workers_enabled"):
     os.mkdir("workers_enabled")
@@ -37,6 +39,48 @@ if __name__ == "__main__":
 
   with open("supervisord.conf", "w") as cfgfile:
     supervisord_config.write(cfgfile)
+    
+  # process_* for simple, single use processes that don't require additional configuration
+  #     aside from the 'command' instruction
+  #     eg  command = ../redis/redis-server ../redis/redis.conf  
+  for worker in [x for x in c.sections() if x.startswith("process_")]:
+    # Worker defaults:
+    params = {'autorestart':'true',
+              'numprocs':'1',
+              'process_name':'%s_%%(process_num)s' % worker,
+              'autostart':'true',
+              'redirect_stderr':'True',
+              'stopwaitsecs':'10',
+              'startsecs':'10',
+              'priority':'999',
+              'startretries':'3',
+              'stdout_logfile':'workerlogs/%s.log' % worker}
+    worker_config = ConfigParser()
+    section_name = "program:%s" % worker
+    worker_config.add_section(section_name)
+    for key in params:
+      if c.has_option(worker, key):
+        worker_config.set(section_name, key, c.get(worker, key))
+      else:
+        worker_config.set(section_name, key, params[key])
+    for key in OPTIONAL_SUPERVISOR_PROCESS_OPTIONS:
+      if c.has_option(worker, key):
+        worker_config.set(section_name, key, c.get(worker, key))
+    # set command
+    command = c.get(worker, 'command')
+    worker_config.set(section_name, 'command', command )
+    
+    worker_conf_fname = "workers_available/%s.conf" % worker
+    
+    with open(worker_conf_fname, "w") as cfgfile:
+      worker_config.write(cfgfile)
+    try:
+      os.symlink(os.path.join("..", worker_conf_fname), "workers_enabled/%s.conf" % worker)
+    except Exception, e:
+      # make a copy, for those systems that cannot symlink
+      import shutil
+      shutil.copy(worker_conf_fname, "workers_enabled/%s.conf" % worker)
+
   
   for worker in [x for x in c.sections() if x.startswith("worker_")]:
     # Worker defaults:
@@ -58,6 +102,9 @@ if __name__ == "__main__":
         worker_config.set(section_name, key, c.get(worker, key))
       else:
         worker_config.set(section_name, key, params[key])
+    for key in OPTIONAL_SUPERVISOR_PROCESS_OPTIONS:
+      if c.has_option(worker, key):
+        worker_config.set(section_name, key, c.get(worker, key))
     # set command
     command = c.get(worker, 'command')
     worker_config.set(section_name, 'command', "%s %s" % (command, "%(process_num)s") )
@@ -94,6 +141,9 @@ if __name__ == "__main__":
       else:
         worker_config.set(section_name, key, params[key])    
     
+    for key in OPTIONAL_SUPERVISOR_PROCESS_OPTIONS:
+      if c.has_option(logger, key):
+        worker_config.set(section_name, key, c.get(logger, key))
     # set command
     command = c.get(logger, 'command')
     worker_config.set(section_name, 'command', "%s %s %s" % (command, "%(process_num)s", logger) )

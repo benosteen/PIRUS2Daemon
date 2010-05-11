@@ -3,6 +3,8 @@ import random, unittest, re
 
 from plugins import ora_utils
 
+import simplejson
+
 from LogConfigParser import Config
 
 # Test suite for ora_utils plugin
@@ -14,6 +16,12 @@ NOTADOWNLOAD = '''2010-03-16 13:31:15,794,794 INFO  [wsgi] 116.125.141.4 - - [16
 JOURNALDOWNLOAD = '''2009-03-31 13:56:55,666,666 INFO  [wsgi] 195.171.182.14 - - [31/Mar/2009:13:56:54 +0100] "GET /objects/uuid%3A054790ca-08eb-4365-af4b-79748fab1fd9/datastreams/ATTACHMENT01 HTTP/1.1" 200 280090 "-" "Python-urllib/2.5"'''
 
 DOWNLOAD = '''2009-04-01 01:14:28,301,301 INFO  [wsgi] 75.26.142.230 - - [01/Apr/2009:01:14:27 +0100] "GET /objects/uuid%3Ac2c638d3-fc6c-4dd1-85c8-682f3e9f40a2/datastreams/ATTACHMENT02 HTTP/1.1" 200 375650 "http://www.google.com/search?hl=en&q=dusp+gene+family&aq=f&oq=" "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; GTB5; .NET CLR 1.1.4322; .NET CLR 2.0.50727; MS-RTC LM 8)"'''
+
+MSG_BOTDOWNLOAD = simplejson.dumps({'service':'ora.bodleian.ox.ac.uk', 'logline':BOTDOWNLOAD})
+MSG_NOTADOWNLOAD = simplejson.dumps({'service':'ora.bodleian.ox.ac.uk', 'logline':NOTADOWNLOAD})
+MSG_JOURNALDOWNLOAD = simplejson.dumps({'service':'ora.bodleian.ox.ac.uk', 'logline':JOURNALDOWNLOAD})
+MSG_DOWNLOAD = simplejson.dumps({'service':'ora.bodleian.ox.ac.uk', 'logline':DOWNLOAD})
+
 
 class TestORAUtils(unittest.TestCase):
   def setUp(self):
@@ -63,7 +71,7 @@ class TestORAUtils(unittest.TestCase):
     self.assertEquals(ident, {})
 
   def test_parseline_DOWNLOAD(self):
-    pl = ora_utils.parseline(DOWNLOAD)
+    pl = ora_utils.parseline(MSG_DOWNLOAD)
     self.assertEquals(pl[u'host'], u'BMC Genomics')
     self.assertEquals(pl[u'datetime'], u'01/Apr/2009:01:14:27 +0100')
     self.assertEquals(pl[u'useragent'], u'"Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; GTB5; .NET CLR 1.1.4322; .NET CLR 2.0.50727; MS-RTC LM 8)"')
@@ -82,7 +90,6 @@ class TestORAUtils(unittest.TestCase):
     return params
     
   def test_get_openURL_params_DOWNLOAD(self):
-    line = DOWNLOAD
     expected_params = {'svc_dat': 'Accepted version', 
                        'rfr_id': 'ora.bodleian.ox.ac.uk', 
                        'url_ver': 'Z39.88-2004', 
@@ -90,10 +97,10 @@ class TestORAUtils(unittest.TestCase):
                        'req_id': 'urn:ip:75.26.142.230', 
                        'rfr_dat': '2009-04-01T01:14:28,301,301', 
                        'req_dat': '"Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; GTB5; .NET CLR 1.1.4322; .NET CLR 2.0.50727; MS-RTC LM 8)"'}
-    params = self.check_params(line, expected_params)
+    params = self.check_params(MSG_DOWNLOAD, expected_params)
 
   def test_get_openURL_params_NOTADOWNLOAD(self):
-    self.check_params(NOTADOWNLOAD)
+    self.check_params(MSG_NOTADOWNLOAD)
 
   def test_get_openURL_params_JOURNALDOWNLOAD(self):
     expected_params = {'svc_dat': 'Accepted version', 
@@ -103,7 +110,7 @@ class TestORAUtils(unittest.TestCase):
                        'req_id': 'urn:ip:195.171.182.14', 
                        'rfr_dat': '2009-03-31T13:56:55,666,666', 
                        'req_dat': '"Python-urllib/2.5"'}
-    params = self.check_params(JOURNALDOWNLOAD, expected_params)
+    params = self.check_params(MSG_JOURNALDOWNLOAD, expected_params)
     
   def test_get_openURL_params_BOTDOWNLOAD(self):
     expected_params = {'svc_dat': 'Accepted version', 
@@ -114,7 +121,7 @@ class TestORAUtils(unittest.TestCase):
                        'rft.jtitle': u'Contributions to Nepalese Studies', 
                        'rft.issn': u'0376-7574', 
                        'req_dat': '"msnbot/2.0b (+http://search.msn.com/msnbot.htm)"'}
-    params = self.check_params(BOTDOWNLOAD, expected_params)
+    params = self.check_params(MSG_BOTDOWNLOAD, expected_params)
 
 if __name__ == '__main__':
     unittest.main()
