@@ -52,8 +52,8 @@ def resolveTinyPid(pid):
   else:
     return pid
 
-def oralookup(pid=None, uuid=None, fields_to_return="f_name, f_subject, f_keyphrase, faculty, f_institution, thesis_type, content_type, collection"):
-  s = SolrConnection("http://ora.ouls.ox.ac.uk:8080/solr/select")
+def oralookup(pid=None, uuid=None, fields_to_return="f_name, f_subject, f_keyphrase, faculty, f_institution, thesis_type, content_type, collection", endpoint="http://ora.ouls.ox.ac.uk:8080/solr/select"):
+  s = SolrConnection(endpoint)
   results = {}
   query = ""
   if pid:
@@ -100,8 +100,12 @@ def _get_id_and_datastream_from_splitline(sl):
         return params.groupdict()
   return {}
 
-def parseline(line):
+def parseline(jmsg):
   pl = {}
+  msg = simplejson.loads(jmsg)
+  pl['rfr_id'] = msg['service']
+  line = msg['logline']
+  
   pl.update(_splitup_logline(line))
   if pl:
     ident = _get_id_and_datastream_from_splitline(pl)
@@ -122,6 +126,8 @@ def get_openurl_params(c, worker_section, pl):
   for key in params:
     if c.has_option(worker_section, key):
       params[key] = c.get(worker_section, key)
+    if key in pl:
+      params[key] = pl[key]
   
   # DOI or ISSN+Journal Title
   doi = _get_doi(pl)

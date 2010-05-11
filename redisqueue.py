@@ -10,7 +10,7 @@ DB = 0
 import logging
 
 logger = logging.getLogger("redisqueue")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 # create console handler and set level to debug
 ch = logging.StreamHandler()
 # create formatter
@@ -62,11 +62,11 @@ class RedisQueue(object):
       return None
 
   def task_complete(self):
-    logger.info("Task completed by worker %s" % self.workername)
+    logger.debug("Task completed by worker %s" % self.workername)
     return self._r.rpop(self.workeritem)
 
   def task_failed(self):
-    logger.info("Task FAILED by worker %s" % self.workername)
+    logger.error("Task FAILED by worker %s" % self.workername)
     logger.debug(self.inprogress())
     return self._r.rpoplpush(self.workeritem, self.queuename)
 
