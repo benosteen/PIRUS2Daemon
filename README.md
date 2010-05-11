@@ -30,10 +30,10 @@ Usage
 * Get, unpack and build redis on the host machine.
 * Download or pull a copy of this project and unpack into an empty directory
 * Open 'loglines.cfg':
-** Change the username/password in the 'supervisor' section
-** If you wish to manage the redis instance through supervisor, add in the path to the 'redis-server' command in the redis directory.
-** Configure the logfilewatcher section to tail the log that user access will be written to and change the 'servicename' to be the unique identifier for your repository
-** Configure the pirus2 section as required - see inline comments for more details
+ * Change the username/password in the 'supervisor' section
+ * If you wish to manage the redis instance through supervisor, add in the path to the 'redis-server' command in the redis directory.
+ * Configure the logfilewatcher section to tail the log that user access will be written to and change the 'servicename' to be the unique identifier for your repository
+ * Configure the pirus2 section as required - see inline comments for more details
 * run ./create_supervisord_config.py - this will create the requisite supervisord configuration
 * To test, run 'supervisord -n -c supervisord.conf' - the '-n' option will stop supervisor from detaching and you can watch its progress.
 * Point a web browser at http://localhost:9001 and enter the username and password to view and manage the workers
@@ -50,8 +50,9 @@ Place plugin files into the 'plugins' directory and change the plugin options in
 
 A pirus2 plugin must provide two functions: 'parseline' and 'get_openurl_params'
 
-:- def parseline(line) - where line is a JSON encoded message. The default that is expected is a dictionary or terms, equivalent to:
-  {'service':'service_unique_id', 'logline':'line from the logger that is to be parsed'}
+:- def parseline(jmsg) - where:
+    jmsg is a JSON encoded string. The default that is expected is a JSON-encoded dictionary of terms, the default being:
+    {'service':'service_unique_id', 'logline':'line from the logger that is to be parsed'}
 
 parseline returns a dictionary of terms that it was able to extract from the logline
 
