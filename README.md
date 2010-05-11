@@ -12,9 +12,11 @@ A set of small processes that take in, parse, and redistribute repository usage 
 Dependancies
 ------------
 
-Supervisord, Redis (>=1.2.6) and the python client for Redis.
+Supervisord, simplejson, Redis (>=1.2.6) and the python client for Redis.
 
-* sudo easy_install supervisord
+(NB install python-dev package or equivalent, as the following should then build the C-backed library for simplejson which is very fast.)
+
+* sudo easy_install supervisord simplejson
 
 Take care to install the correct python client for your version of redis
 
@@ -50,17 +52,17 @@ Place plugin files into the 'plugins' directory and change the plugin options in
 
 A pirus2 plugin must provide two functions: 'parseline' and 'get_openurl_params'
 
-:- def parseline(jmsg) - where:
-    jmsg is a JSON encoded string. The default that is expected is a JSON-encoded dictionary of terms, the default being:
-    {'service':'service_unique_id', 'logline':'line from the logger that is to be parsed'}
+> def parseline(jmsg) - where:
+>   jmsg is a JSON encoded string. The default that is expected is a JSON-encoded dictionary of terms, the default being:
+>   {'service':'service_unique_id', 'logline':'line from the logger that is to be parsed'}
 
 parseline returns a dictionary of terms that it was able to extract from the logline
 
-:- def get_openurl_params(c, worker_section, pl) where:
-    c - ConfigParser instance, containing a parsed version of 'loglines.cfg' so you can include whatever variables in this that you require
-                (for custom configuration data, please use a section prefixed with your plugin's name to curb collisions)
-    worker_section - this will be the 'pirus2' section of the configuration for the worker that uses this plugin
-    pl - the parsed dictionary that came from 'parseline' above
+> def get_openurl_params(c, worker_section, pl) where:
+>    c - ConfigParser instance, containing a parsed version of 'loglines.cfg' so you can include whatever variables in this that you require
+>               (for custom configuration data, please use a section prefixed with your plugin's name to curb collisions)
+>   worker_section - this will be the 'pirus2' section of the configuration for the worker that uses this plugin
+>   pl - the parsed dictionary that came from 'parseline' above
     
 get_openurl_params should return a dictionary of terms if it is to be sent to a PIRUS2 endpoint. Therefore this function should also determine whether or not it is eligable for PIRUS2. If not, it should return an empty dictionary or None.
 
