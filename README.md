@@ -16,7 +16,7 @@ Supervisord, simplejson, Redis (>=1.2.6) and the python client for Redis.
 
 (NB install python-dev package or equivalent, as the following should then build the C-backed library for simplejson which is very fast.)
 
-* sudo easy_install supervisord simplejson
+* sudo easy_install supervisor simplejson
 
 Take care to install the correct python client for your version of redis
 
