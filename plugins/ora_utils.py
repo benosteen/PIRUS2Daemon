@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 
-#from solr import SolrConnection
+from hashlib import md5
+
+from fedoraClient30 import FedoraClient
 
 import re
 LOGLINE_PATTERN = re.compile(r'(?P<date>[^\s]*) (?P<time>[^\s]*) (?P<level>[^\s]*) ([^\s]*) (?P<logger>[^\s]*) (?P<ip>[^\s]*) ([^\s]*) ([^\s]*) \[(?P<datetime>[^\]]*)\] \"(?P<request>[^\"]*)\" (?P<responsecode>[\d]*) ([^\s]*) ([^\s]*) (?P<useragent>.*$)')
 
 # Matches any GET on an object datastream
 OBJ_DATASTREAM = re.compile(r"""GET /objects/(?P<namespace>ora|uuid|hdl)(\:|\%3A|\%253A)(?P<id>[0-9abcedf\-]+)/datastreams/(?P<dsid>[0-9A-z\-]+) """, re.I|re.U)
+
+OBJ_METADATA_DATASTREAM = re.compile(r"""GET /objects/(?P<namespace>ora|uuid|hdl)(\:|\%3A|\%253A)(?P<id>[0-9abcedf\-]+)/datastreams/(?P<dsid>MODS|DC|MARC21|FULLTEXT|RELS-EXT) """, re.I|re.U)
 
 from solr import SolrConnection
 
@@ -32,6 +36,8 @@ logger.addHandler(ch)
 import urllib
 
 SERVER = "http://ora.ouls.ox.ac.uk:8080/fedora/risearch"
+
+SALT = "Oh I do like to be besides the seaside"
 
 def getTrippi(query_type, query, lang='itql', format='Sparql',limit='100'):
   query_type = query_type.lower()
@@ -67,7 +73,7 @@ def oralookup(pid=None, uuid=None, fields_to_return="f_name, f_subject, f_keyphr
   tries = 0
   while(tries != 3):
     try:
-      r = s.query(q = query, wt = "json", fields = fields_to_return)
+      r = s.query(q = query, fields = fields_to_return)
       logger.debug("Solr response: %s" % r.header)
       tries = 3
     except BadStatusLine:
@@ -96,7 +102,8 @@ def _get_id_and_datastream_from_splitline(sl):
   if 'responsecode' in sl and 'request' in sl:
     if sl['responsecode'] == "200" or sl['responsecode'] == "204":
       params = OBJ_DATASTREAM.match(sl['request'])
-      if params != None:
+      m_params = OBJ_METADATA_DATASTREAM.match(sl['request'])
+      if params != None and m_params == None:
         return params.groupdict()
   return {}
 
@@ -113,7 +120,7 @@ def parseline(jmsg):
       pl.update(ident)
       # It's a download, go grab the metadata and see if it's a journal title
       md_terms = oralookup(pid=":".join([ident['namespace'], ident['id']]), 
-                fields_to_return="title, host, issn, eissn, doi, collection")
+                fields_to_return="title, host, version, family, issn, eissn, doi, collection, content_type")
       pl.update(md_terms)
   return pl
 
@@ -143,13 +150,20 @@ def get_openurl_params(c, worker_section, pl):
       return {}
       
   # Mimetype
-  #mimetype = _get_mimetype(pl)
-  #params['svc_format'] = mimetype
+  mimetype = _get_mimetype(pl)
+  params['svc_format'] = mimetype
   
+  # Repository URL
+  pid = "%s:%s" % (pl['namespace'], pl['id'])
+  params['rft.artnum'] = "http://ora.ouls.ox.ac.uk/objects/%s" % pid
   # log line params to OpenURL params
-  params['req_id'] = "urn:ip:%s" % pl['ip']
+  #params['req_id'] = "urn:ip:%s" % pl['ip']
+  params['req_id'] = md5(pl['ip'] + SALT).hexdigest()
   params['req_dat'] = pl['useragent']
-  params['rfr_dat'] = "%sT%s" % (pl['date'], pl['time'])
+  params['url_tim'] = "%sT%s" % (pl['date'], pl['time'])
+
+  if pl.has_key("version") and pl['version']:
+    params['svc_dat'] = pl['version']
   return params
 
 def _get_doi(pl):
@@ -167,8 +181,26 @@ def _get_doi(pl):
 
 def _get_journal_info(pl):
   j_dict = {}
+  # Journal Article test:
+  if not (pl.has_key("collection") and pl['collection'] == [u"ora:articles"] \
+      and pl.has_key("content_type") and pl['content_type'] == [u"article"]):
+      return {}
   if pl.has_key("host"):
-    j_dict['rft.jtitle'] = pl['host']
+    try:
+      j_dict['rft.jtitle'] = pl['host'].encode("UTF-8")
+    except:
+      j_dict['rft.jtitle'] = pl['host']
+  if pl.has_key("title"):
+    try:
+      j_dict['rft.atitle'] = pl['title'].encode("UTF-8")
+    except:
+      j_dict['rft.atitle'] = pl['title']
+  if pl.has_key("family") and pl['family']:
+    try:
+      # first author, last name:
+      j_dict['rft.aulast'] = pl['family'][0].encode("UTF-8")
+    except:
+      j_dict['rft.aulast'] = pl['family'][0]
   if pl.has_key("issn"):
     if isinstance(pl['issn'], list):
       j_dict['rft.issn'] = pl['issn'][0]
@@ -182,4 +214,8 @@ def _get_journal_info(pl):
   return j_dict
 
 def _get_mimetype(pl):
-  return 'application/pdf'
+  if pl.has_key('dsid'):
+    f = FedoraClient(server="http://ora.ouls.ox.ac.uk:8080/fedora")
+    dl = f.listDatastreams("%s:%s" % (pl['namespace'], pl['id']), format="python")
+    if pl['dsid'] in dl:
+      return dl[pl['dsid']]['mimetype']
